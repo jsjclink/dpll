@@ -88,7 +88,7 @@ class DPLL:
         while res := self.find_unit_clause_with_f_a(f_a):
             prop_var, truth_val, imply_clause = res
             self.add_assignment(prop_var, self.AssignmentElem(truth_val, imply_clause))
-            f_a = self.update_f_a(f_a)
+            f_a = self.update_f_a(f_a, prop_var, truth_val)
 
         self.unit_prop_time += time.time() - start_time
 
@@ -120,14 +120,14 @@ class DPLL:
     # util functions
     def add_assignment(self, prop_var, assignment_elem):
         self.assignment[prop_var] = assignment_elem
-        total = time.time() - self.start_time
+        total = time.time() - self.start_time + 1.0
         print(
             f"add. {prop_var}: {assignment_elem}, len: {len(self.assignment)}, porp: {self.unit_prop_time / total * 100}%, learn: {self.learn_time / total * 100}%, calc_f_a: {self.calculate_f_a_time / total * 100}%, find_unit: {self.find_unit / total * 100}%, update_f_a: {self.update_f_a_time / total * 100}%"
         )
 
     def pop_assignment(self):
         prop_var, assignment_elem = self.assignment.popitem()
-        total = time.time() - self.start_time
+        total = time.time() - self.start_time + 1.0
         print(
             f"pop. {prop_var}: {assignment_elem}, len: {len(self.assignment)}, porp: {self.unit_prop_time / total * 100}%, learn: {self.learn_time / total * 100}%, calc_f_a: {self.calculate_f_a_time / total * 100}%, find_unit: {self.find_unit / total * 100}%, update_f_a: {self.update_f_a_time / total * 100}%"
         )
@@ -188,24 +188,21 @@ class DPLL:
 
         return f_a
 
-    def update_f_a(self, f_a):
+    def update_f_a(self, f_a, prop_var, truth_val):
         start_time = time.time()
 
         new_f_a = {}
+        true_literal = prop_var if truth_val else -prop_var
+        false_literal = -prop_var if truth_val else prop_var
         for clause in f_a.keys():
-            if self.is_true_clause(clause):
+            if true_literal in clause:
                 continue
             tmp_clause = set(clause)
-            for prop_var, assign_elem in self.assignment.items():
-                literal_assigned_false = (
-                    -prop_var if assign_elem.truth_val else prop_var
-                )
-                if literal_assigned_false in tmp_clause:
-                    tmp_clause.remove(literal_assigned_false)
+            if false_literal in clause:
+                tmp_clause.remove(false_literal)
             new_f_a[frozenset(tmp_clause)] = f_a[clause]
 
         self.update_f_a_time += time.time() - start_time
-
         return new_f_a
 
     def resolve(self, c, d, pi):
