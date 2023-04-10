@@ -1,4 +1,3 @@
-import copy
 import sys
 import re
 
@@ -49,28 +48,33 @@ class DPLL:
         self.num_vars, self.num_clauses = num_vars, num_clauses
         # store cnf_formula
         self.cnf_formula = cnf_formula
-        # prop_val|-> assignment_elem
+        # prop_var|-> assignment_elem
         self.assignment = {}
-        # prop_val|-> depth map
-        self.depth_map = {}
 
     # dpll algorithm
     def dpll(self):
+        print(f"given cnf: {self.cnf_formula}")
         while True:
             f_a = self.unit_prop()
             if len(f_a) == 0:
                 return self.assignment
             elif frozenset() in f_a.keys():
-                print(f_a[frozenset()])
                 clause = self.learn(f_a[frozenset()])
+                print(f"conflict clause: {f_a[frozenset()]}")
+                print(f"learned clause: {clause}")
+                self.cnf_formula.add(clause)
+                print(f"after adding learned clause: {self.cnf_formula}")
                 if len(clause) == 0:
                     return None
-                while self.is_unit_clause(clause):
+                while not self.is_unit_clause(clause):
                     self.assignment.popitem()
             else:
                 for i in range(1, self.num_vars + 1):
                     if i in self.assignment.keys():
                         continue
+                    print(
+                        f"decision. prop_var: {i}, truth_val: {False}, imply_clause: {None}"
+                    )
                     self.add_assignment(i, self.AssignmentElem(False, None))
                     break
 
@@ -78,17 +82,44 @@ class DPLL:
         f_a = self.calculate_f_a()
         while res := self.find_unit_clause_with_f_a(f_a):
             prop_var, truth_val, imply_clause = res
+            print(
+                f"unit_prop. prop_var: {prop_var}, truth_val: {truth_val}, imply_clause: {imply_clause}"
+            )
             self.add_assignment(prop_var, self.AssignmentElem(truth_val, imply_clause))
             f_a = self.update_f_a(f_a)
         return f_a
 
     def learn(self, conflict_clause):
-        return set()
+        k = len(self.assignment)
+        print(f"learn start!! k: {k}")
+
+        # prop_vars[1]: firstly inserted to assignment, prop_vars[2]: p2 secondly inserted to assignment
+        prop_vars = [0] + [p for p in self.assignment.keys()]
+        print(f"prop_vars: {prop_vars}")
+
+        # Dk+1 = conflict_clause
+        D = conflict_clause
+        for i in reversed(range(1, k + 1)):
+            pi = prop_vars[i]
+            print(f"pi: {pi}")
+            if self.assignment[pi].imply_clause is None or (
+                pi not in D and -pi not in D
+            ):
+                continue
+            if self.assignment[pi].imply_clause and (pi in D or -pi in D):
+                print(
+                    f"pi: {pi} is impied(by: {self.assignment[pi].imply_clause}) and pi is in D: {D}"
+                )
+                D = self.resolve(self.assignment[pi].imply_clause, D, pi)
+                print(f"after resolve: {D}")
+        return D
 
     # util functions
     def add_assignment(self, prop_var, assignment_elem):
-        self.depth_map[prop_var] = len(self.assignment)
         self.assignment[prop_var] = assignment_elem
+
+    def pop_assignment(self):
+        self.assignment.popitem()
 
     def is_true_clause(self, clause):
         for prop_var, assign_elem in self.assignment.items():
@@ -150,14 +181,28 @@ class DPLL:
 
         return new_f_a
 
+    def resolve(self, c, d, pi):
+        tmp_c = set(c)
+        tmp_d = set(d)
+        if pi in tmp_c:
+            tmp_c.remove(pi)
+            tmp_d.remove(-pi)
+        else:
+            tmp_c.remove(-pi)
+            tmp_d.remove(pi)
+
+        union = tmp_c.union(tmp_d)
+
+        return frozenset(union)
+
 
 if __name__ == "__main__":
     dpll = DPLL()
     assignment = dpll.dpll()
     if assignment:
         print("SAT!")
-        for prop_val, assignment_elem in assignment.items():
-            print(f"prop_val: {prop_val}, ", end="")
+        for prop_var, assignment_elem in assignment.items():
+            print(f"prop_var: {prop_var}, ", end="")
             print(assignment_elem)
     else:
         print("UNSAT!")
