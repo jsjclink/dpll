@@ -1,5 +1,6 @@
 import sys
 import re
+import time
 
 
 class DPLL:
@@ -10,7 +11,8 @@ class DPLL:
             self.imply_clause = imply_clause
 
         def __str__(self):
-            return f"truth_val: {self.truth_val}, imply_clause: {self.imply_clause}"
+            # return f"truth_val: {self.truth_val}, imply_clause: {self.imply_clause}"
+            return f"{self.truth_val}"
 
     # parse cnf formula from input file
     def __init__(self):
@@ -51,75 +53,84 @@ class DPLL:
         # prop_var|-> assignment_elem
         self.assignment = {}
 
+        self.start_time = time.time()
+        self.unit_prop_time = 0.0
+        self.learn_time = 0.0
+        self.calculate_f_a_time = 0.0
+        self.find_unit = 0.0
+        self.update_f_a_time = 0.0
+
     # dpll algorithm
     def dpll(self):
-        print(f"given cnf: {self.cnf_formula}")
         while True:
+            # self.print_assignment()
             f_a = self.unit_prop()
             if len(f_a) == 0:
                 return self.assignment
             elif frozenset() in f_a.keys():
                 clause = self.learn(f_a[frozenset()])
-                print(f"conflict clause: {f_a[frozenset()]}")
-                print(f"learned clause: {clause}")
                 self.cnf_formula.add(clause)
-                print(f"after adding learned clause: {self.cnf_formula}")
                 if len(clause) == 0:
                     return None
                 while not self.is_unit_clause(clause):
-                    self.assignment.popitem()
+                    self.pop_assignment()
             else:
                 for i in range(1, self.num_vars + 1):
                     if i in self.assignment.keys():
                         continue
-                    print(
-                        f"decision. prop_var: {i}, truth_val: {False}, imply_clause: {None}"
-                    )
                     self.add_assignment(i, self.AssignmentElem(False, None))
                     break
 
     def unit_prop(self):
+        start_time = time.time()
+
         f_a = self.calculate_f_a()
         while res := self.find_unit_clause_with_f_a(f_a):
             prop_var, truth_val, imply_clause = res
-            print(
-                f"unit_prop. prop_var: {prop_var}, truth_val: {truth_val}, imply_clause: {imply_clause}"
-            )
             self.add_assignment(prop_var, self.AssignmentElem(truth_val, imply_clause))
             f_a = self.update_f_a(f_a)
+
+        self.unit_prop_time += time.time() - start_time
+
         return f_a
 
     def learn(self, conflict_clause):
+        start_time = time.time()
+
         k = len(self.assignment)
-        print(f"learn start!! k: {k}")
 
         # prop_vars[1]: firstly inserted to assignment, prop_vars[2]: p2 secondly inserted to assignment
         prop_vars = [0] + [p for p in self.assignment.keys()]
-        print(f"prop_vars: {prop_vars}")
 
         # Dk+1 = conflict_clause
         D = conflict_clause
         for i in reversed(range(1, k + 1)):
             pi = prop_vars[i]
-            print(f"pi: {pi}")
             if self.assignment[pi].imply_clause is None or (
                 pi not in D and -pi not in D
             ):
                 continue
             if self.assignment[pi].imply_clause and (pi in D or -pi in D):
-                print(
-                    f"pi: {pi} is impied(by: {self.assignment[pi].imply_clause}) and pi is in D: {D}"
-                )
                 D = self.resolve(self.assignment[pi].imply_clause, D, pi)
-                print(f"after resolve: {D}")
+
+        self.learn_time += time.time() - start_time
+
         return D
 
     # util functions
     def add_assignment(self, prop_var, assignment_elem):
         self.assignment[prop_var] = assignment_elem
+        total = time.time() - self.start_time
+        print(
+            f"add. {prop_var}: {assignment_elem}, len: {len(self.assignment)}, porp: {self.unit_prop_time / total * 100}%, learn: {self.learn_time / total * 100}%, calc_f_a: {self.calculate_f_a_time / total * 100}%, find_unit: {self.find_unit / total * 100}%, update_f_a: {self.update_f_a_time / total * 100}%"
+        )
 
     def pop_assignment(self):
-        self.assignment.popitem()
+        prop_var, assignment_elem = self.assignment.popitem()
+        total = time.time() - self.start_time
+        print(
+            f"pop. {prop_var}: {assignment_elem}, len: {len(self.assignment)}, porp: {self.unit_prop_time / total * 100}%, learn: {self.learn_time / total * 100}%, calc_f_a: {self.calculate_f_a_time / total * 100}%, find_unit: {self.find_unit / total * 100}%, update_f_a: {self.update_f_a_time / total * 100}%"
+        )
 
     def is_true_clause(self, clause):
         for prop_var, assign_elem in self.assignment.items():
@@ -140,16 +151,26 @@ class DPLL:
             return False
 
     def find_unit_clause_with_f_a(self, f_a):
+        start_time = time.time()
+
         for clause in f_a.keys():
             if not len(clause) == 1:
                 continue
             imply_clause = f_a[clause]
             tmp_clause = set(clause)
             literal = tmp_clause.pop()
+
+            self.find_unit += time.time() - start_time
+
             return abs(literal), (True if literal > 0 else False), imply_clause
+
+        self.find_unit += time.time() - start_time
+
         return None
 
     def calculate_f_a(self):
+        start_time = time.time()
+
         f_a = {}
         for clause in self.cnf_formula:
             if self.is_true_clause(clause):
@@ -163,9 +184,13 @@ class DPLL:
                     tmp_clause.remove(literal_assigned_false)
             f_a[frozenset(tmp_clause)] = clause
 
+        self.calculate_f_a_time += time.time() - start_time
+
         return f_a
 
     def update_f_a(self, f_a):
+        start_time = time.time()
+
         new_f_a = {}
         for clause in f_a.keys():
             if self.is_true_clause(clause):
@@ -178,6 +203,8 @@ class DPLL:
                 if literal_assigned_false in tmp_clause:
                     tmp_clause.remove(literal_assigned_false)
             new_f_a[frozenset(tmp_clause)] = f_a[clause]
+
+        self.update_f_a_time += time.time() - start_time
 
         return new_f_a
 
@@ -195,15 +222,24 @@ class DPLL:
 
         return frozenset(union)
 
+    def print_assignment(self):
+        for prop_val, assignment_elem in self.assignment.items():
+            print(f"{prop_val}: {assignment_elem}", end=", ")
+        print("")
+
 
 if __name__ == "__main__":
     dpll = DPLL()
     assignment = dpll.dpll()
     if assignment:
-        print("SAT!")
-        for prop_var, assignment_elem in assignment.items():
-            print(f"prop_var: {prop_var}, ", end="")
-            print(assignment_elem)
+        print("s SATISFIABLE")
+        assignment_lst = [
+            (prop_var if assignment_elem.truth_val else -prop_var)
+            for prop_var, assignment_elem in assignment.items()
+        ]
+        output = (
+            "v " + " ".join(str(assignment) for assignment in assignment_lst) + " 0"
+        )
+        print(output)
     else:
-        print("UNSAT!")
-    print(dpll.cnf_formula)
+        print("s UNSATISFIABLE")
