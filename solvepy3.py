@@ -103,14 +103,21 @@ class DPLL:
                 if len(clause) == 0:
                     return None
                 self.add_clause(clause)
+                # with restart
                 self.conflict_cnt = self.conflict_cnt + 1
-                if self.conflict_cnt % 700 == 0:
+                if self.conflict_cnt % 1000 == 0:
                     while len(self.assignment) > 0:
                         self.pop_assignment()
                 else:
                     while not self.is_unit_clause(clause):
                         self.pop_assignment()
+
+                # without restart
+                # while not self.is_unit_clause(clause):
+                #     self.pop_assignment()
+
             else:
+                # with smart pick
                 x = max(
                     range(1, self.num_vars + 1),
                     key=lambda x: 0
@@ -121,6 +128,8 @@ class DPLL:
                     self.add_assignment(x, self.AssignmentElem(True, None))
                 else:
                     self.add_assignment(x, self.AssignmentElem(False, None))
+
+                # without smart pick
                 # for i in range(1, self.num_vars + 1):
                 #     if i in self.assignment.keys():
                 #         continue
@@ -340,7 +349,6 @@ class DPLL:
 
 
 if __name__ == "__main__":
-    start_time = time.time()
     dpll = DPLL()
     res = dpll.dpll()
     if res:
@@ -353,9 +361,5 @@ if __name__ == "__main__":
             "v " + " ".join(str(assignment) for assignment in assignment_lst) + " 0"
         )
         print(output)
-
-        print("CHECK!: {}", dpll.check(assignment_lst))
     else:
         print("s UNSATISFIABLE")
-
-    print("elapsed: ", time.time() - start_time)
