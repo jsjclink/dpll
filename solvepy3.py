@@ -105,7 +105,7 @@ class DPLL:
                 self.add_clause(clause)
                 # with restart
                 self.conflict_cnt = self.conflict_cnt + 1
-                if self.conflict_cnt % 1000 == 0:
+                if self.conflict_cnt % 700 == 0:
                     while len(self.assignment) > 0:
                         self.pop_assignment()
                 else:
@@ -349,6 +349,7 @@ class DPLL:
 
 
 if __name__ == "__main__":
+    start = time.time()
     dpll = DPLL()
     res = dpll.dpll()
     if res:
@@ -363,3 +364,4 @@ if __name__ == "__main__":
         print(output)
     else:
         print("s UNSATISFIABLE")
+    print(time.time() - start)

@@ -1,0 +1,19 @@
+[literal_map]
+key: literal value: set of clauses
+
+update <- cnf_formula change(add clause)
+
+[f_a]
+key: full clause, value: clause under assignment
+
+update <- add assignment, pop assignment, cnf_formula change(add clause)
+
+[unit clauses]
+set of unit clauses
+
+update <- f_a change(add assignment, pop assignment, cnf_formula change)
+
+[conflict clause]
+current conflict clause Some or None
+
+update <- f_a change

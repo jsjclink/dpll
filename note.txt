@@ -1,2 +1,0 @@
-f_a 만들 때
-f_a = {clause: original_clause, ...}
